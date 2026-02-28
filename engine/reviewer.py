@@ -60,8 +60,14 @@ async def review(
                     lines = lines[:-1]
                 cleaned = "\n".join(lines)
 
-            json.loads(cleaned)
-            logger.info("Reviewer returned valid JSON (attempt %d)", attempt + 1)
+            parsed = json.loads(cleaned)
+            if not isinstance(parsed, dict):
+                logger.warning(
+                    "Reviewer returned valid JSON but not a dict (type=%s, attempt %d)",
+                    type(parsed).__name__, attempt + 1,
+                )
+                continue
+            logger.info("Reviewer returned valid JSON dict (attempt %d)", attempt + 1)
             return cleaned, True
 
         except json.JSONDecodeError as exc:
