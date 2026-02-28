@@ -1,0 +1,19 @@
+[project]
+name = "vc-replan-mcp"
+version = "0.1.0"
+description = "Architecture Review MCP Server — 7-dimension audit with KB"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.26.0,<2.0.0",
+    "openai>=1.60.0,<2.0.0",
+    "pydantic>=2.10.0,<3.0.0",
+    "python-dotenv>=1.0.0,<2.0.0",
+    "pyyaml>=6.0.0,<7.0.0",
+]
+
+[project.scripts]
+vc-replan-mcp = "server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

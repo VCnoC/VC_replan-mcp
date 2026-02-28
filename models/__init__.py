@@ -1,0 +1,43 @@
+"""Public API for models package."""
+
+from .schemas import (
+    Severity,
+    Category,
+    CoverageStatus,
+    EvidenceType,
+    KBUpdateAction,
+    Evidence,
+    Vulnerability,
+    MatrixCoverage,
+    WebSourceHash,
+    AuditMetadata,
+    AuditSummary,
+    IntelligenceSources,
+    ContentPatch,
+    AffectedEntry,
+    AuditRequest,
+    AuditResponse,
+    KBUpdateRequest,
+    KBUpdateResponse,
+)
+
+__all__ = [
+    "Severity",
+    "Category",
+    "CoverageStatus",
+    "EvidenceType",
+    "KBUpdateAction",
+    "Evidence",
+    "Vulnerability",
+    "MatrixCoverage",
+    "WebSourceHash",
+    "AuditMetadata",
+    "AuditSummary",
+    "IntelligenceSources",
+    "ContentPatch",
+    "AffectedEntry",
+    "AuditRequest",
+    "AuditResponse",
+    "KBUpdateRequest",
+    "KBUpdateResponse",
+]

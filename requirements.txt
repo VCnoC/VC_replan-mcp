@@ -1,0 +1,6 @@
+# VC_replan-mcp V0 dependencies (pinned)
+mcp>=1.26.0,<2.0.0
+openai>=1.60.0,<2.0.0
+pydantic>=2.10.0,<3.0.0
+python-dotenv>=1.0.0,<2.0.0
+pyyaml>=6.0.0,<7.0.0
