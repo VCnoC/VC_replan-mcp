@@ -312,6 +312,8 @@ def _add_reverse_link(
         return
     try:
         idx_data = yaml.safe_load(idx_path.read_text(encoding="utf-8"))
+        if not isinstance(idx_data, dict) or "entries" not in idx_data:
+            return
         for entry in idx_data.get("entries", []):
             if entry.get("vuln_id") == vuln.id:
                 rp = entry.setdefault("related_projects", [])

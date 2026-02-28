@@ -91,7 +91,9 @@ def _search(keyword: str, api_key: str) -> list[dict]:
     }
     resp = _post_json(_SEARCH_URL, body, api_key)
     if isinstance(resp, dict):
-        return resp.get("results", resp.get("data", []))
+        results = resp.get("results", resp.get("data", []))
+        if isinstance(results, list):
+            return results
     return []
 
 
@@ -138,6 +140,8 @@ async def research(
         items = await loop.run_in_executor(None, _search, kw, api_key)
         urls_to_read: list[str] = []
         for item in items:
+            if not isinstance(item, dict):
+                continue
             url = item.get("url") or item.get("link", "")
             title = item.get("title", "")
             snippet = item.get("snippet", item.get("description", ""))
