@@ -62,7 +62,7 @@ cp .env.example .env
 - `UNIFUNCS_API_KEY` — UniFuncs Web 搜索 API Key
 
 可选项：
-- `KB_PATH` — 知识库根目录（默认 `VC_planning_mcp_kb/`）
+- `KB_PATH` — 知识库根目录（默认 `~/.claude/VC_planning_mcp_kb`，无需配置）
 - `KB_CLI` — KB 检索使用的 CLI（`claude` / `gemini` / `codex`，默认 `claude`）
 - `KB_AUTO_WRITE` — 审查后自动写入 KB（`true` / `false`，默认 `true`）
 - `KB_WRITE_S2` — S2 级别是否写入 KB（默认 `true`）
@@ -78,9 +78,6 @@ claude mcp add vc-replan-mcp \
   -e REVIEWER_API_KEY=你的审查模型Key \
   -e REVIEWER_MODEL=deepseek-chat \
   -e UNIFUNCS_API_KEY=你的UniFuncs-Key \
-  -e KB_PATH=/你的路径/VC_replan-mcp/VC_planning_mcp_kb \
-  -e KB_AUTO_WRITE=true \
-  -e KB_WRITE_S2=true \
   -- python3 "/你的路径/VC_replan-mcp/server.py"
 ```
 
@@ -100,10 +97,7 @@ claude mcp add vc-replan-mcp \
         "REVIEWER_API_BASE": "https://api.deepseek.com/v1",
         "REVIEWER_API_KEY": "你的审查模型Key",
         "REVIEWER_MODEL": "deepseek-chat",
-        "UNIFUNCS_API_KEY": "你的UniFuncs-Key",
-        "KB_PATH": "/你的路径/VC_replan-mcp/VC_planning_mcp_kb",
-        "KB_AUTO_WRITE": "true",
-        "KB_WRITE_S2": "true"
+        "UNIFUNCS_API_KEY": "你的UniFuncs-Key"
       }
     }
   }
@@ -123,10 +117,7 @@ claude mcp add vc-replan-mcp \
   -e REVIEWER_API_KEY=你的审查模型Key \
   -e REVIEWER_MODEL=deepseek-chat \
   -e UNIFUNCS_API_KEY=你的UniFuncs-Key \
-  -e KB_PATH=/你的路径/VC_replan-mcp/VC_planning_mcp_kb \
-  -e KB_AUTO_WRITE=true \
-  -e KB_WRITE_S2=true \
-  -- uvx --from "/你的路径/VC_replan-mcp" vc-replan-mcp
+  -- uvx vc-replan-mcp
 ```
 
 或手动写入 `claude.json`：
@@ -136,15 +127,12 @@ claude mcp add vc-replan-mcp \
   "mcpServers": {
     "vc-replan-mcp": {
       "command": "uvx",
-      "args": ["--from", "/你的路径/VC_replan-mcp", "vc-replan-mcp"],
+      "args": ["vc-replan-mcp"],
       "env": {
         "REVIEWER_API_BASE": "https://api.deepseek.com/v1",
         "REVIEWER_API_KEY": "你的审查模型Key",
         "REVIEWER_MODEL": "deepseek-chat",
-        "UNIFUNCS_API_KEY": "你的UniFuncs-Key",
-        "KB_PATH": "/你的路径/VC_replan-mcp/VC_planning_mcp_kb",
-        "KB_AUTO_WRITE": "true",
-        "KB_WRITE_S2": "true"
+        "UNIFUNCS_API_KEY": "你的UniFuncs-Key"
       }
     }
   }

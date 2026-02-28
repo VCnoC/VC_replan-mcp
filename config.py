@@ -110,7 +110,7 @@ def load_settings() -> Settings:
         reviewer_api_key=_require_env("REVIEWER_API_KEY"),
         reviewer_model=_optional_env("REVIEWER_MODEL", "deepseek-chat"),
         unifuncs_api_key=_require_env("UNIFUNCS_API_KEY"),
-        kb_path=Path(_optional_env("KB_PATH", "VC_planning_mcp_kb")),
+        kb_path=Path(_optional_env("KB_PATH", str(Path.home() / ".claude" / "VC_planning_mcp_kb"))),
         kb_cli=_optional_env("KB_CLI", "claude"),
         kb_auto_write=_bool_env("KB_AUTO_WRITE", True),
         kb_write_s2=_bool_env("KB_WRITE_S2", True),
