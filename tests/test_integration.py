@@ -64,6 +64,7 @@ class TestEndToEnd:
         mock_settings.return_value.reviewer_model = "test-model"
         mock_settings.return_value.unifuncs_api_key = "sk-test"
         mock_settings.return_value.kb_path = kb_path
+        mock_settings.return_value.kb_cli = ""
         mock_settings.return_value.kb_auto_write = True
         mock_settings.return_value.kb_write_s2 = True
         mock_settings.return_value.prompt_template_version = "v0.1.0"
@@ -131,6 +132,7 @@ class TestEndToEnd:
         mock_settings.return_value.reviewer_model = "test-model"
         mock_settings.return_value.unifuncs_api_key = "sk-test"
         mock_settings.return_value.kb_path = kb_path
+        mock_settings.return_value.kb_cli = ""
         mock_settings.return_value.kb_auto_write = False
         mock_settings.return_value.kb_write_s2 = True
         mock_settings.return_value.prompt_template_version = "v0.1.0"

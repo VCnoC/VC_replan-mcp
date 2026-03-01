@@ -46,6 +46,8 @@ class KBRetrievalResult:
     records: list[KBRecord] = field(default_factory=list)
     snapshot_hash: str = ""
     injection_warnings: list[str] = field(default_factory=list)
+    retrieval_method: str = ""   # "clink" | "native_keyword" | "native_keyword_fallback"
+    clink_cli_name: str = ""     # CLI used/attempted (e.g. "claude", "gemini")
 
 
 # ---------------------------------------------------------------------------
@@ -298,6 +300,8 @@ def _retrieve_via_clink(
     return KBRetrievalResult(
         records=records,
         snapshot_hash=snapshot,
+        retrieval_method="clink",
+        clink_cli_name=kb_cli,
     )
 
 
@@ -355,6 +359,7 @@ def _retrieve_native(
         records=final,
         snapshot_hash=snapshot,
         injection_warnings=injection_warnings,
+        retrieval_method="native_keyword",
     )
 
 
@@ -389,6 +394,10 @@ def retrieve(
             )
         except Exception as exc:
             logger.warning("clink retrieval failed, falling back to native: %s", exc)
+            result = _retrieve_native(kb_path, tech_stack_keywords, project_id)
+            result.retrieval_method = "native_keyword_fallback"
+            result.clink_cli_name = kb_cli  # record which CLI was attempted
+            return result
 
-    # Fallback path: Python-native keyword matching
+    # Fallback path: Python-native keyword matching (no clink configured)
     return _retrieve_native(kb_path, tech_stack_keywords, project_id)

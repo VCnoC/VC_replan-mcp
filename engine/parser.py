@@ -174,6 +174,8 @@ def parse(
     search_keywords: list[str],
     kb_records_found: int,
     web_sources_consulted: int,
+    kb_retrieval_method: str = "",
+    kb_cli_name: str = "",
 ) -> AuditResponse:
     """Parse Reviewer output into a structured AuditResponse."""
 
@@ -218,6 +220,8 @@ def parse(
     intel = IntelligenceSources(
         unifuncs_search=search_keywords,
         kb_records_found=kb_records_found,
+        kb_retrieval_method=kb_retrieval_method,
+        kb_cli_name=kb_cli_name,
         web_sources_consulted=web_sources_consulted,
     )
 

@@ -100,6 +100,8 @@ async def execute(request: AuditRequest) -> AuditResponse:
         search_keywords=request.tech_stack_keywords,
         kb_records_found=len(kb_result.records),
         web_sources_consulted=len(research_result.sources),
+        kb_retrieval_method=kb_result.retrieval_method,
+        kb_cli_name=kb_result.clink_cli_name,
     )
 
     # ⑥ KB auto-write

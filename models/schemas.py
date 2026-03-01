@@ -97,7 +97,7 @@ class AuditMetadata(BaseModel):
     kb_snapshot_hash: str = ""
     web_sources_hashes: list[WebSourceHash] = Field(default_factory=list)
     sanitizer_version: str = "v0.1.0"
-    tool_version: str = "VC_replan-mcp@0.1.0"
+    tool_version: str = "VC_replan-mcp@0.1.7"
 
 
 # ---------------------------------------------------------------------------
@@ -131,6 +131,14 @@ class AuditSummary(BaseModel):
 class IntelligenceSources(BaseModel):
     unifuncs_search: list[str] = Field(default_factory=list)
     kb_records_found: int = 0
+    kb_retrieval_method: str = Field(
+        default="",
+        description="clink | native_keyword | native_keyword_fallback",
+    )
+    kb_cli_name: str = Field(
+        default="",
+        description="CLI used/attempted for KB retrieval (e.g. claude, gemini)",
+    )
     web_sources_consulted: int = 0
 
 
