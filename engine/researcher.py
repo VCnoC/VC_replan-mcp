@@ -99,12 +99,21 @@ def _search(keyword: str, api_key: str) -> list[dict]:
     logger.info(f"Search for '{keyword}': response type={type(resp)}")
     if isinstance(resp, dict):
         logger.info(f"Response keys: {list(resp.keys())}")
-        results = resp.get("results", resp.get("data", []))
-        if isinstance(results, list):
-            logger.info(f"Found {len(results)} results for '{keyword}'")
-            return results
+
+        # UniFuncs API returns: {"code": 0, "message": "OK", "data": {"webPages": [...]}}
+        if resp.get("code") == 0:
+            data = resp.get("data", {})
+            if isinstance(data, dict):
+                web_pages = data.get("webPages", [])
+                if isinstance(web_pages, list):
+                    logger.info(f"Found {len(web_pages)} results for '{keyword}'")
+                    return web_pages
+                else:
+                    logger.warning(f"webPages field is not a list for '{keyword}': {type(web_pages)}")
+            else:
+                logger.warning(f"data field is not a dict for '{keyword}': {type(data)}")
         else:
-            logger.warning(f"Results field is not a list for '{keyword}': {type(results)}")
+            logger.warning(f"API returned error code {resp.get('code')} for '{keyword}': {resp.get('message')}")
     else:
         logger.warning(f"Unexpected response type for '{keyword}': {resp}")
     return []
@@ -166,9 +175,10 @@ async def research(
         for item in items:
             if not isinstance(item, dict):
                 continue
-            url = item.get("url") or item.get("link", "")
-            title = item.get("title", "")
-            snippet = item.get("snippet", item.get("description", ""))
+            # UniFuncs API returns: {"name": "...", "url": "...", "snippet": "...", "summary": "..."}
+            url = item.get("url", "")
+            title = item.get("name", "")  # UniFuncs uses "name" not "title"
+            snippet = item.get("snippet", "") or item.get("summary", "")
             if url and url not in seen_urls:
                 seen_urls.add(url)
                 all_sources.append(WebSource(url=url, title=title, snippet=snippet))
