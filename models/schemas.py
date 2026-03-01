@@ -97,7 +97,7 @@ class AuditMetadata(BaseModel):
     kb_snapshot_hash: str = ""
     web_sources_hashes: list[WebSourceHash] = Field(default_factory=list)
     sanitizer_version: str = "v0.1.0"
-    tool_version: str = "VC_replan-mcp@0.1.7"
+    tool_version: str = "VC_replan-mcp@0.1.8"
 
 
 # ---------------------------------------------------------------------------
@@ -140,6 +140,19 @@ class IntelligenceSources(BaseModel):
         description="CLI used/attempted for KB retrieval (e.g. claude, gemini)",
     )
     web_sources_consulted: int = 0
+    # CLI raw output fields
+    kb_cli_raw_output: str | None = Field(
+        default=None,
+        description="Raw stdout from CLI execution (for debugging)",
+    )
+    kb_cli_stderr: str | None = Field(
+        default=None,
+        description="Raw stderr from CLI execution (for debugging)",
+    )
+    kb_cli_metadata: dict[str, Any] | None = Field(
+        default=None,
+        description="Additional CLI execution metadata (duration, return code, etc.)",
+    )
 
 
 class AuditResponse(BaseModel):

@@ -104,6 +104,12 @@ async def execute(request: AuditRequest) -> AuditResponse:
         kb_cli_name=kb_result.clink_cli_name,
     )
 
+    # Add CLI raw output to intelligence_sources (for debugging)
+    if kb_result.clink_raw_stdout or kb_result.clink_raw_stderr:
+        audit_response.intelligence_sources.kb_cli_raw_output = kb_result.clink_raw_stdout
+        audit_response.intelligence_sources.kb_cli_stderr = kb_result.clink_raw_stderr
+        audit_response.intelligence_sources.kb_cli_metadata = kb_result.clink_metadata
+
     # ⑥ KB auto-write
     if settings.kb_auto_write and audit_response.vulnerabilities:
         try:

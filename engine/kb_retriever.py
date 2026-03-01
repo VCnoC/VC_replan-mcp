@@ -48,6 +48,10 @@ class KBRetrievalResult:
     injection_warnings: list[str] = field(default_factory=list)
     retrieval_method: str = ""   # "clink" | "native_keyword" | "native_keyword_fallback"
     clink_cli_name: str = ""     # CLI used/attempted (e.g. "claude", "gemini")
+    # CLI raw output fields (for debugging)
+    clink_raw_stdout: str = ""   # Raw stdout from CLI execution
+    clink_raw_stderr: str = ""   # Raw stderr from CLI execution
+    clink_metadata: dict = field(default_factory=dict)  # Additional metadata
 
 
 # ---------------------------------------------------------------------------
@@ -302,6 +306,15 @@ def _retrieve_via_clink(
         snapshot_hash=snapshot,
         retrieval_method="clink",
         clink_cli_name=kb_cli,
+        # Store raw CLI output for debugging
+        clink_raw_stdout=result.stdout or "",
+        clink_raw_stderr=result.stderr or "",
+        clink_metadata={
+            "duration_seconds": result.duration_seconds,
+            "returncode": result.returncode,
+            "parsed_content_length": len(result.content),
+            "metadata": result.metadata,
+        },
     )
 
 
