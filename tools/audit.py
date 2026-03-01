@@ -49,6 +49,7 @@ async def execute(request: AuditRequest) -> AuditResponse:
         settings.kb_path,
         request.tech_stack_keywords,
         request.project_id,
+        settings,
     )
 
     research_result = await research_task

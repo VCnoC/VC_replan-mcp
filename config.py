@@ -75,7 +75,7 @@ class Settings:
 
     # Derived / internal
     project_root: Path = field(default=_PROJECT_ROOT)
-    tool_version: str = field(default="VC_replan-mcp@0.1.5")
+    tool_version: str = field(default="VC_replan-mcp@0.1.6")
     prompt_template_version: str = field(default="v0.1.0")
     sanitizer_version: str = field(default="v0.1.0")
 

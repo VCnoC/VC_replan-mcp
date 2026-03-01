@@ -12,6 +12,10 @@
     },
     "codereviewer": {
       "prompt_path": "systemprompts/claude/codereviewer.txt"
+    },
+    "kb_retriever": {
+      "prompt_path": "systemprompts/claude/kb_retriever.txt",
+      "description": "KB semantic retrieval specialist"
     }
   }
 }

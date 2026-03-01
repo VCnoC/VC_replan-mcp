@@ -1,13 +1,15 @@
-"""Knowledge-base retriever — index-first search with clink CLI fallback.
+"""Knowledge-base retriever — clink AI primary + native keyword fallback.
 
 Retrieval strategy:
-1. Scan _index.yaml files for keyword matches (fast)
-2. Read matched .md files for full context (on demand)
-3. Merge global + project results, deduplicate by vuln_id
+1. Primary: clink CLI sub-agent for AI-powered semantic retrieval
+2. Fallback: Scan _index.yaml files for keyword matches (fast)
+3. Read matched .md files for full context (on demand)
+4. Merge global + project results, deduplicate by vuln_id
 """
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -165,20 +167,150 @@ def _compute_snapshot_hash(kb_root: Path) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Public API
+# Clink AI retrieval (primary path)
 # ---------------------------------------------------------------------------
 
-def retrieve(
+def _build_kb_prompt(
+    kb_path: Path,
+    tech_stack_keywords: list[str],
+    project_id: str | None,
+) -> str:
+    """Build the retrieval prompt for the clink CLI sub-agent."""
+    keywords_str = ", ".join(tech_stack_keywords)
+    lines = [
+        f"Search the knowledge base at: {kb_path}",
+        f"Keywords to match: {keywords_str}",
+        "",
+        "Search directories:",
+        f"  - {kb_path / 'global'}/  (all category subdirectories)",
+    ]
+    if project_id:
+        lines.append(f"  - {kb_path / 'projects' / project_id}/  (project-specific)")
+    lines.extend([
+        "",
+        "Categories to scan: Security, Performance, Architecture, "
+        "Compatibility, DataIntegrity, Reliability, Observability",
+        "",
+        "For each category, read _index.yaml and find entries whose "
+        "keywords or tech_stack overlap with the search keywords. "
+        "For matched entries, read the corresponding .md file.",
+        "",
+        "Return ONLY the JSON output as specified in your system prompt.",
+    ])
+    return "\n".join(lines)
+
+
+def _parse_clink_response(
+    content: str,
+    kb_root: Path,
+) -> list[KBRecord]:
+    """Parse clink CLI JSON response into KBRecord list.
+
+    Raises ValueError/json.JSONDecodeError on invalid input (triggers fallback).
+    """
+    # Strip markdown code fences if present
+    cleaned = content.strip()
+    if cleaned.startswith("```"):
+        # Remove opening fence (possibly ```json)
+        first_newline = cleaned.index("\n")
+        cleaned = cleaned[first_newline + 1:]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3].rstrip()
+
+    data = json.loads(cleaned)
+
+    matched = data.get("matched_records")
+    if not isinstance(matched, list):
+        raise ValueError("Response missing 'matched_records' array")
+
+    records: list[KBRecord] = []
+    for entry in matched:
+        file_path_raw = entry.get("file_path", "")
+        # Resolve file_path relative to kb_root
+        candidate = (kb_root / file_path_raw).resolve()
+        if not _safe_path(kb_root, candidate):
+            logger.warning(
+                "Clink returned path outside KB root, skipping: %s",
+                file_path_raw,
+            )
+            continue
+
+        # Sanitize content from CLI response
+        raw_content = entry.get("content", "")
+        sanitized = sanitize(raw_content) if raw_content else None
+
+        records.append(KBRecord(
+            vuln_id=entry.get("vuln_id", ""),
+            severity=entry.get("severity", ""),
+            category=entry.get("category", ""),
+            title=entry.get("title", ""),
+            keywords=entry.get("keywords", []),
+            tech_stack=entry.get("tech_stack", []),
+            file_path=str(candidate),
+            content=sanitized.cleaned if sanitized else "",
+            hit_count=0,
+            layer=entry.get("layer", "global"),
+        ))
+    return records
+
+
+def _retrieve_via_clink(
+    kb_path: Path,
+    tech_stack_keywords: list[str],
+    project_id: str | None,
+    kb_cli: str,
+) -> KBRetrievalResult:
+    """Primary retrieval path using clink CLI sub-agent.
+
+    Raises on failure so the caller can fall back to native retrieval.
+    """
+    from clink_core.registry import get_registry
+    from clink_core.runner import run_cli
+
+    kb_root = Path(kb_path).resolve()
+
+    registry = get_registry()
+    client = registry.get_client(kb_cli)
+
+    # Get kb_retriever role, fall back to default if not configured
+    try:
+        role = client.get_role("kb_retriever")
+    except KeyError:
+        logger.info(
+            "Role 'kb_retriever' not found for CLI '%s', using 'default'",
+            kb_cli,
+        )
+        role = client.get_role("default")
+
+    prompt = _build_kb_prompt(kb_root, tech_stack_keywords, project_id)
+
+    result = run_cli(client, role, prompt)
+
+    if not result.success:
+        raise RuntimeError(
+            f"clink CLI returned failure (rc={result.returncode}): "
+            f"{result.content[:200]}"
+        )
+
+    records = _parse_clink_response(result.content, kb_root)
+    snapshot = _compute_snapshot_hash(kb_root)
+
+    return KBRetrievalResult(
+        records=records,
+        snapshot_hash=snapshot,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Native retrieval (fallback path)
+# ---------------------------------------------------------------------------
+
+def _retrieve_native(
     kb_path: Path,
     tech_stack_keywords: list[str],
     project_id: str | None = None,
 ) -> KBRetrievalResult:
-    """Retrieve relevant KB records using index-first strategy.
-
-    This is the Python-native fallback.  When clink CLI is available,
-    the caller (kb_retriever via clink) can use AI-powered retrieval
-    instead.
-    """
+    """Python-native fallback: index-first keyword matching."""
     kb_root = Path(kb_path).resolve()
     if not kb_root.exists():
         logger.info("KB path does not exist: %s", kb_root)
@@ -224,3 +356,39 @@ def retrieve(
         snapshot_hash=snapshot,
         injection_warnings=injection_warnings,
     )
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+def retrieve(
+    kb_path: Path,
+    tech_stack_keywords: list[str],
+    project_id: str | None = None,
+    settings: object | None = None,
+) -> KBRetrievalResult:
+    """Retrieve relevant KB records.
+
+    Primary path: clink CLI AI-powered semantic retrieval.
+    Fallback: Python-native index-first keyword matching.
+
+    Args:
+        kb_path: Root directory of the knowledge base.
+        tech_stack_keywords: Keywords to match against KB entries.
+        project_id: Optional project identifier for project-scoped search.
+        settings: Optional Settings object; when present and settings.kb_cli
+                  is set, enables the clink primary path.
+    """
+    # Primary path: clink AI semantic retrieval
+    kb_cli = getattr(settings, "kb_cli", None) if settings else None
+    if kb_cli:
+        try:
+            return _retrieve_via_clink(
+                kb_path, tech_stack_keywords, project_id, kb_cli,
+            )
+        except Exception as exc:
+            logger.warning("clink retrieval failed, falling back to native: %s", exc)
+
+    # Fallback path: Python-native keyword matching
+    return _retrieve_native(kb_path, tech_stack_keywords, project_id)

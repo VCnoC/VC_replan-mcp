@@ -120,31 +120,59 @@ def _search(keyword: str, api_key: str) -> list[dict]:
 
 
 def _read_page(url: str, api_key: str) -> str:
-    """Deep-read a single URL and return markdown content."""
+    """Deep-read a single URL and return markdown content.
+
+    Unlike web-search (JSON), web-reader returns raw markdown with status
+    in the ``X-Unifuncs-Status`` response header.  We handle this directly
+    instead of going through ``_post_json``.
+    """
     body = {
         "url": url,
         "apiKey": api_key,
-        "format": "md",  # UniFuncs API default format
-        "liteMode": False,  # Full content mode
+        "format": "md",
+        "liteMode": False,
         "readTimeout": _READ_TIMEOUT_MS,
     }
-    # Only add maxWords if it's set (None means no limit)
     if _READ_MAX_WORDS is not None:
         body["maxWords"] = _READ_MAX_WORDS
 
-    logger.info(f"Calling web-reader API for: {url}")
-    resp = _post_json(_READER_URL, body, api_key, timeout=180)
+    payload = json.dumps(body).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
+    req = Request(_READER_URL, data=payload, headers=headers, method="POST")
 
-    if isinstance(resp, str):
-        logger.info(f"Got string response, length: {len(resp)}")
-        return resp
-    if isinstance(resp, dict):
-        content = resp.get("content", resp.get("text", str(resp)))
-        logger.info(f"Got dict response, content length: {len(content)}")
-        return content
+    logger.info("Calling web-reader API for: %s", url)
+    try:
+        with urlopen(req, timeout=180) as resp:
+            # Check status from response header (API always returns HTTP 200)
+            status_str = resp.headers.get("X-Unifuncs-Status", "0")
+            try:
+                api_status = int(status_str)
+            except ValueError:
+                api_status = -1
 
-    logger.warning(f"Unexpected response type from web-reader: {type(resp)}")
-    return ""
+            raw = resp.read().decode("utf-8")
+
+            if api_status != 0:
+                logger.warning(
+                    "web-reader returned status %d for %s: %s",
+                    api_status, url, raw[:200],
+                )
+                return ""
+
+            logger.info("Successfully read %d chars from %s", len(raw), url)
+            return raw
+    except HTTPError as exc:
+        logger.warning("HTTP %d from web-reader for %s", exc.code, url)
+        return ""
+    except URLError as exc:
+        logger.warning("Network error reaching web-reader for %s: %s", url, exc.reason)
+        return ""
+    except Exception as exc:
+        logger.warning("web-reader request failed for %s: %s", url, exc)
+        return ""
 
 
 def _sha256(text: str) -> str:
