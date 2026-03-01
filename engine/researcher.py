@@ -58,7 +58,11 @@ class ResearchResult:
 def _post_json(url: str, body: dict, api_key: str, timeout: int = 60) -> dict | str:
     """POST JSON and return parsed response."""
     payload = json.dumps(body).encode("utf-8")
-    req = Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",  # UniFuncs API requires Authorization header
+    }
+    req = Request(url, data=payload, headers=headers, method="POST")
     try:
         with urlopen(req, timeout=timeout) as resp:
             raw = resp.read().decode("utf-8")
