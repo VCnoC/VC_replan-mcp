@@ -23,9 +23,9 @@ _SEARCH_URL = "https://api.unifuncs.com/api/web-search/search"
 _READER_URL = "https://api.unifuncs.com/api/web-reader/read"
 
 # Limits
-_SEARCH_COUNT = 5       # results per keyword
+_SEARCH_COUNT = 10      # results per keyword (UniFuncs API default)
 _MAX_READ = 3           # pages to deep-read per keyword
-_READ_MAX_WORDS = 3000  # per page
+_READ_MAX_WORDS = None  # no word limit (full content)
 _READ_TIMEOUT_MS = 120_000
 
 
@@ -90,10 +90,19 @@ def _search(keyword: str, api_key: str) -> list[dict]:
         "format": "json",
     }
     resp = _post_json(_SEARCH_URL, body, api_key)
+
+    # Debug logging
+    logger.info(f"Search for '{keyword}': response type={type(resp)}")
     if isinstance(resp, dict):
+        logger.info(f"Response keys: {list(resp.keys())}")
         results = resp.get("results", resp.get("data", []))
         if isinstance(results, list):
+            logger.info(f"Found {len(results)} results for '{keyword}'")
             return results
+        else:
+            logger.warning(f"Results field is not a list for '{keyword}': {type(results)}")
+    else:
+        logger.warning(f"Unexpected response type for '{keyword}': {resp}")
     return []
 
 
@@ -102,16 +111,26 @@ def _read_page(url: str, api_key: str) -> str:
     body = {
         "url": url,
         "apiKey": api_key,
-        "format": "markdown",
-        "liteMode": True,
-        "maxWords": _READ_MAX_WORDS,
+        "format": "md",  # UniFuncs API default format
+        "liteMode": False,  # Full content mode
         "readTimeout": _READ_TIMEOUT_MS,
     }
+    # Only add maxWords if it's set (None means no limit)
+    if _READ_MAX_WORDS is not None:
+        body["maxWords"] = _READ_MAX_WORDS
+
+    logger.info(f"Calling web-reader API for: {url}")
     resp = _post_json(_READER_URL, body, api_key, timeout=180)
+
     if isinstance(resp, str):
+        logger.info(f"Got string response, length: {len(resp)}")
         return resp
     if isinstance(resp, dict):
-        return resp.get("content", resp.get("text", str(resp)))
+        content = resp.get("content", resp.get("text", str(resp)))
+        logger.info(f"Got dict response, content length: {len(content)}")
+        return content
+
+    logger.warning(f"Unexpected response type from web-reader: {type(resp)}")
     return ""
 
 
@@ -138,6 +157,7 @@ async def research(
 
     for kw in keywords:
         items = await loop.run_in_executor(None, _search, kw, api_key)
+        logger.info(f"Keyword '{kw}': got {len(items)} search results")
         urls_to_read: list[str] = []
         for item in items:
             if not isinstance(item, dict):
@@ -152,9 +172,12 @@ async def research(
                     urls_to_read.append(url)
 
         # Deep-read top pages
+        logger.info(f"Keyword '{kw}': will deep-read {len(urls_to_read)} URLs")
         for url in urls_to_read:
+            logger.info(f"Deep-reading: {url}")
             raw_content = await loop.run_in_executor(None, _read_page, url, api_key)
             if raw_content:
+                logger.info(f"Successfully read {len(raw_content)} chars from {url}")
                 result = sanitize(raw_content)
                 if result.has_injections:
                     injection_warnings.extend(result.injection_hits)
