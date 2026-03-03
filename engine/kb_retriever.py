@@ -52,6 +52,15 @@ class KBRetrievalResult:
     clink_raw_stdout: str = ""   # Raw stdout from CLI execution
     clink_raw_stderr: str = ""   # Raw stderr from CLI execution
     clink_metadata: dict = field(default_factory=dict)  # Additional metadata
+    clink_error: str = ""        # Error message if clink failed
+
+
+class ClinkRetrievalError(Exception):
+    """Raised when clink retrieval fails; carries CLIResult for debugging."""
+
+    def __init__(self, message: str, *, cli_result: object | None = None) -> None:
+        super().__init__(message)
+        self.cli_result = cli_result
 
 
 # ---------------------------------------------------------------------------
@@ -293,12 +302,20 @@ def _retrieve_via_clink(
     result = run_cli(client, role, prompt)
 
     if not result.success:
-        raise RuntimeError(
+        raise ClinkRetrievalError(
             f"clink CLI returned failure (rc={result.returncode}): "
-            f"{result.content[:200]}"
+            f"{result.content[:500]}",
+            cli_result=result,
         )
 
-    records = _parse_clink_response(result.content, kb_root)
+    try:
+        records = _parse_clink_response(result.content, kb_root)
+    except Exception as parse_exc:
+        raise ClinkRetrievalError(
+            f"clink CLI succeeded but response parse failed: {parse_exc}",
+            cli_result=result,
+        ) from parse_exc
+
     snapshot = _compute_snapshot_hash(kb_root)
 
     return KBRetrievalResult(
@@ -410,6 +427,26 @@ def retrieve(
             result = _retrieve_native(kb_path, tech_stack_keywords, project_id)
             result.retrieval_method = "native_keyword_fallback"
             result.clink_cli_name = kb_cli  # record which CLI was attempted
+            result.clink_error = str(exc)
+
+            # Extract CLIResult info from ClinkRetrievalError for debugging
+            if isinstance(exc, ClinkRetrievalError) and exc.cli_result is not None:
+                cli_res = exc.cli_result
+                result.clink_raw_stdout = getattr(cli_res, "stdout", "") or ""
+                result.clink_raw_stderr = getattr(cli_res, "stderr", "") or ""
+                result.clink_metadata = {
+                    "returncode": getattr(cli_res, "returncode", None),
+                    "duration_seconds": getattr(cli_res, "duration_seconds", 0.0),
+                    "content_preview": (getattr(cli_res, "content", "") or "")[:1000],
+                    "success": getattr(cli_res, "success", None),
+                    "metadata": getattr(cli_res, "metadata", {}),
+                }
+            else:
+                # Non-ClinkRetrievalError (e.g. registry/config error)
+                result.clink_metadata = {
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                }
             return result
 
     # Fallback path: Python-native keyword matching (no clink configured)
